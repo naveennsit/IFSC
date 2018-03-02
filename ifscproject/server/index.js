@@ -1,7 +1,11 @@
 import express from "express";
 import React from "react";
 import {renderToString} from "react-dom/server";
-import Home from "../shared/home";
+import routes from "../shared/routes";
+import {StaticRouter, matchPath} from 'react-router-dom';
+import App from '../shared/app';
+
+
 import sourceMapSupport from "source-map-support";
 import axios from "axios";
 
@@ -13,17 +17,49 @@ const app = express();
 app.use(express.static("public"));
 
 app.get("*", (req, res) => {
-    console.log('calining=============');
-    axios
-        .get("https://biz.timesofindia.indiatimes.com/bankifsc/getlist")
-        .then(response => {
-            const data = response.data.data;
-            var markUp = renderToString(<Home initialData={data}/>);
-            res.send(`
+    console.log(req.url);
+
+
+    const activeRoute = routes.find(route => matchPath(req.url, route));
+    const requestInitialData =
+        activeRoute.component.requestInitialData && activeRoute.component.requestInitialData();
+
+    if (requestInitialData) {
+        Promise.resolve(requestInitialData)
+            .then(response => {
+                console.log('calining=============');
+                const data = response.data.data;
+                const context = {
+                    initialData: data
+                }
+                var markUp = renderToString(
+                    <StaticRouter location={req.url} context={context}>
+                        <App/>
+                    </StaticRouter>
+                );
+                res.send(`
               <!DOCTYPE html>
               <head>
                 <title>Universal Reacl</title>
-                <link rel="stylesheet" href="/css/main.css">
+                <script src="/bundle.js" defer></script>
+                <script>window.__initialData__ = ${JSON.stringify(data)}</script>
+              </head>
+              <body>
+                <div id="root">${markUp}</div>
+              </body>
+            </html>
+          `);
+            });
+    }else {
+        var markUp = renderToString(
+            <StaticRouter location={req.url} context={{}}>
+                <App/>
+            </StaticRouter>
+        );
+        res.send(`
+              <!DOCTYPE html>
+              <head>
+                <title>Universal Reacl</title>
                 <script src="/bundle.js" defer></script>
               </head>
               <body>
@@ -31,7 +67,7 @@ app.get("*", (req, res) => {
               </body>
             </html>
           `);
-        });
+    }
 });
 
 app.listen(process.env.PORT || 3000, () => {

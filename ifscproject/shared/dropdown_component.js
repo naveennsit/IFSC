@@ -3,11 +3,12 @@ import React from 'react';
 class DropDown extends React.Component {
     constructor(props) {
         super(props);
+        console.log(props)
     }
 
     onChangeDropdown = (e) => {
         console.log(e.target.value);
-        //this.props.callbackFn(e.target.value)
+        this.props.callbackFn(e.target.value)
     };
 
     render() {
